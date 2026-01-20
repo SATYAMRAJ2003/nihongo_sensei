@@ -1,15 +1,26 @@
+# backend/app/stt.py
 import os
 import whisper
+import torch
 from googletrans import Translator
 import pyttsx3
 
-def transcribe_audio(audio_path: str):
-    """Transcribes Japanese audio using Whisper."""
-    if r"C:\ffmpeg\bin" not in os.environ["PATH"]:
-        os.environ["PATH"] += os.pathsep + r"C:\ffmpeg\bin"
+# Detect device (GPU if available, else CPU)
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-    model = whisper.load_model("base")
-    result = model.transcribe(audio_path, language="ja", task="transcribe")
+# Load Whisper Large once at startup
+MODEL = whisper.load_model("small", device=DEVICE)
+
+def transcribe_audio(audio_path: str) -> str:
+    """Transcribes Japanese audio using Whisper Large."""
+    if not os.path.exists(audio_path):
+        raise FileNotFoundError(f"Audio file not found: {audio_path}")
+
+    result = MODEL.transcribe(
+        audio_path,
+        language="ja",
+        fp16=(DEVICE == "cuda")  # fp16 only on GPU
+    )
     return result["text"]
 
 def speak_text(text: str, lang: str = "en"):
@@ -18,7 +29,6 @@ def speak_text(text: str, lang: str = "en"):
     voices = engine.getProperty("voices")
 
     if lang == "en":
-        # Prefer Zira, fallback to David
         for v in voices:
             if "Zira" in v.name:
                 engine.setProperty("voice", v.id)
@@ -29,7 +39,6 @@ def speak_text(text: str, lang: str = "en"):
                     engine.setProperty("voice", v.id)
                     break
     elif lang == "ja":
-        # Will only work once you install a Japanese voice in Windows
         for v in voices:
             if "Japanese" in v.name:
                 engine.setProperty("voice", v.id)
