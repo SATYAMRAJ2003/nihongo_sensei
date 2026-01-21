@@ -1,36 +1,48 @@
 from fastapi import FastAPI, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
 import shutil
 import os
+
 from app.stt import transcribe_audio
-from googletrans import Translator
+from app.translate import translate_ja_to_en
 
-app = FastAPI()
-translator = Translator()
+app = FastAPI(title="Nihongo Sensei API")
 
-# ✅ Add this root route
+
+# Enable CORS (for frontend access)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
 @app.get("/")
 def root():
-    return {"message": "Nihongo-Sensei backend is running!"}
+    return {"status": "Nihongo-Sensei backend running"}
+
 
 @app.post("/speech-to-text")
 async def speech_to_text(file: UploadFile = File(...)):
+    """
+    Accepts an audio file, converts Japanese speech to text,
+    then translates it into English.
+    """
+    temp_path = f"temp_{file.filename}"
+
     # Save uploaded file temporarily
-    file_path = f"temp_{file.filename}"
-    with open(file_path, "wb") as buffer:
+    with open(temp_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
     try:
-        # Step 1: Transcribe Japanese
-        ja_text = transcribe_audio(file_path)
-
-        # Step 2: Translate into English
-        en_text = translator.translate(ja_text, src="ja", dest="en").text
+        japanese_text = transcribe_audio(temp_path)
+        english_text = translate_ja_to_en(japanese_text)
     finally:
-        # Clean up temp file
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
     return {
-        "japanese": ja_text,
-        "english": en_text
+        "japanese": japanese_text,
+        "english": english_text
     }

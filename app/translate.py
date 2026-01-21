@@ -1,6 +1,18 @@
-from googletrans import Translator
+from deep_translator import GoogleTranslator
 
-translator = Translator()
 
-def translate_ja_to_en(text: str) -> str:
-    return translator.translate(text, src="ja", dest="en").text
+def translate_ja_to_en(ja_text: str) -> str:
+    """
+    Translates Japanese text to English.
+
+    Args:
+        ja_text (str): Japanese text
+
+    Returns:
+        str: English translation
+    """
+    if not ja_text.strip():
+        return ""
+
+    translator = GoogleTranslator(source="ja", target="en")
+    return translator.translate(ja_text)
