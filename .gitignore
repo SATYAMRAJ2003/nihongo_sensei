@@ -1,0 +1,25 @@
+# Python cache
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+
+# Virtual environments
+venv/
+.venv/
+
+# Logs
+*.log
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Data (ignore large audio, keep one sample if needed)
+data/
+!data/audio_samples/sample_ja.aac
+
+# Secrets
+.env
