@@ -2,6 +2,7 @@ from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 import shutil
 import os
+import uuid
 
 from app.improvement import suggest_improvements
 from app.stt import transcribe_audio
@@ -23,9 +24,9 @@ from app.weak_area import detect_weak_area
 from app.roadmap import generate_learning_roadmap
 
 
-
 app = FastAPI(title="Nihongo Sensei API")
 
+# ✅ CORS (safe for frontend deployment)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -33,9 +34,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/")
 def root():
-    return {"status": "Nihongo-Sensei backend running"}
+    return {"status": "Nihongo Sensei backend running"}
+
 
 @app.post("/speech-to-text")
 async def speech_to_text(
@@ -43,7 +46,12 @@ async def speech_to_text(
     expected_text: str = Form(...),
     session_id: str = Form(None)
 ):
-    temp_path = f"temp_{file.filename}"
+    # ✅ Validate file type
+    if file.content_type not in ["audio/wav", "audio/mpeg", "audio/aac"]:
+        return {"error": "Unsupported audio format"}
+
+    # ✅ Safe temp file
+    temp_path = f"temp_{uuid.uuid4()}.wav"
 
     with open(temp_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
@@ -78,7 +86,6 @@ async def speech_to_text(
             current_level=pronunciation_jlpt
         )
 
-        # Progress feedback
         if previous_score is None:
             progress_feedback = "First attempt recorded."
         elif score > previous_score:
@@ -92,8 +99,10 @@ async def speech_to_text(
         grammar_patterns = detect_grammar_patterns(japanese_text)
         grammar_mistakes = detect_grammar_mistakes(japanese_text)
         grammar_level = grammar_jlpt_level(grammar_patterns)
+
         grammar_feedback_text = grammar_feedback(
-            grammar_patterns, grammar_level
+            grammar_patterns,
+            grammar_level
         )
 
         grammar_corrections = (
@@ -102,9 +111,12 @@ async def speech_to_text(
         )
 
         # 5️⃣ Sentence improvements
-        improvements = suggest_improvements(japanese_text, grammar_level)
+        improvements = suggest_improvements(
+            japanese_text,
+            grammar_level
+        )
 
-        # 6️⃣ Local Sensei feedback
+        # 6️⃣ Sensei feedback
         sensei_reply = local_sensei_feedback(
             japanese=japanese_text,
             english=english_text,
@@ -112,7 +124,7 @@ async def speech_to_text(
             jlpt_level=pronunciation_jlpt
         )
 
-        # 7️⃣ Weak area detection
+        # 7️⃣ Weak areas + recommendations
         weak_area_analysis = detect_weak_area(
             pronunciation_score=score,
             grammar_level=grammar_level
@@ -124,11 +136,10 @@ async def speech_to_text(
         )
 
         learning_roadmap = generate_learning_roadmap(
-         current_level=progression["next_level"],
-         weak_area=weak_area_analysis["weak_area"],
-         grammar_level=grammar_level
+            current_level=progression["next_level"],
+            weak_area=weak_area_analysis["weak_area"],
+            grammar_level=grammar_level
         )
-
 
         # 8️⃣ Update session
         update_session(session_id, {
@@ -169,5 +180,4 @@ async def speech_to_text(
         "improved_sentences": improvements,
         "sensei_reply": sensei_reply,
         "learning_roadmap": learning_roadmap
-
     }
