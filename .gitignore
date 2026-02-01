@@ -1,0 +1,17 @@
+# Python
+venv/
+backend/venv/
+__pycache__/
+*.pyc
+.env
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+
+# Data / audio
+data/
+
+# Logs
+*.log
